@@ -1,4 +1,6 @@
 #!/bin/sh
+#@0.2 2014.04.17 11:51:00 GMT-3
+#
 # Bash script used to generate (and backup) the database used by codequery.
 #
 # Author: Andre C. Barros <andre.cbarros@yahoo.com>
@@ -20,10 +22,10 @@ usage () {
           "  -d [#[=+-],..] (depth)     Set depth search (= min max, + min, - max);\n" \
           "  -i                         Set case insensitive source name match;\n" \
           "  -I                         Set case sensitive source name match (default);\n" \
-          "  -n <[[iI].]def:pattern>|   \`find -[i]name 'pattern'\`. If '!' is present\n" \
-          "     <[[!][iI].]:pattern>    'pattern' is used for exclusion on all searches;\n" \
-          "  -r <[[iI].]def:pattern>|   \`file -[i]regex 'pattern'\`. See '-n'. 'def' is;\n" \
-          "     <[[!][iI].]:pattern>    type/class definition to be reused (saves 'pattern');\n" \
+          "  -n <[[iI].]def:pattern>|   \`find -[i]name 'pattern'\`. If ! is present\n" \
+          "     <[[!][iI].]:pattern>    <pattern> is used for exclusion on all searches;\n" \
+          "  -r <[[iI].]def:pattern>|   \`file -[i]regex 'pattern'\`. See '-n'. <def> is a\n" \
+          "     <[[!][iI].]:pattern>    type/class definition to be reused (saves <pattern>);\n" \
           "  -o <find opts> (options)   Extra 'find' options (affect all searches);\n" \
           "  -a <pattern> (avoid)       Avoid internal files of revision control system,\n" \
           "                             '-' disables default pattern, '+' enables it;\n" \
@@ -511,8 +513,7 @@ while true ; do
       ;;
 
     -h|--help)
-      usage
-      exit 0
+      opts="${opts}h"
       ;;
 
     --)
@@ -562,21 +563,30 @@ fi
 # Print control information?
 #
 if [ -n "${opts//[!E]/}" ]; then
-  [ ${#re_types} != 0 ]  && echo "Regex types : '${re_types//$NL/$NL               }'"
-  [ ${#re_ctags} != 0 ]  && echo "Regex ctags : '${re_ctags//$NL/$NL               }'"
-  [ ${#re_etags} != 0 ]  && echo "Extra defs  : '${re_etags//$NL/$NL               }'"
+  [ ${#re_types} != 0 ]   && echo "Regex types : '${re_types//$NL/$NL               }'"
+  [ ${#re_ctags} != 0 ]   && echo "Regex ctags : '${re_ctags//$NL/$NL               }'"
+  [ ${#re_etags} != 0 ]   && echo "Extra defs  : '${re_etags//$NL/$NL               }'"
+
+  [ ${#_ctags} != 0 ]     && echo "ctags       : '${_ctags}'"
+  [ ${#_cscope} != 0 ]    && echo "cscope      : '${_cscope}'"
+  [ ${#_pycscope} != 0 ]  && echo "pycscope    : '${_pycscope}'"
+  [ ${#_starscope} != 0 ] && echo "starscope   : '${_starscope}'"
+  [ ${#_cqmakedb} != 0 ]  && echo "cqmakedb    : '${_cqmakedb}'"
 fi
 if [ -n "${opts//[!D]/}" ]; then
-  [ ${#opts} != 0 ]      && echo "Arg. options: '$opts'"
-  [ ${#prj} != 0 ]       && echo "Project name: '$prj'" \
-                         && echo "Project path: '$pdir'"
-  [ ${#tags} != 0 ]      && echo "Type / class: '${tags//$BELL/$NL               }'"
-  [ ${#etags} != 0 ]     && echo "Extra defs  : '${etags//$BELL/$NL               }'"
-  [ ${#avoid} != 0 ]     && echo "RCS (avoid) : '$avoid'"
-  [ ${#findopts} != 0 ]  && echo "Find options: '${findopts}'"
-  [ ${#findavoid} != 0 ] && echo "Find (avoid): '${findavoid}'"
-  pfts=
+  [ ${#opts} != 0 ]       && echo "Arg. options: '$opts'"
+  [ ${#prj} != 0 ]        && echo "Project name: '$prj'" \
+                          && echo "Project path: '$pdir'"
+  [ ${#tags} != 0 ]       && echo "Type / class: '${tags//$BELL/$NL               }'"
+  [ ${#etags} != 0 ]      && echo "Extra defs  : '${etags//$BELL/$NL               }'"
+  [ ${#avoid} != 0 ]      && echo "RCS (avoid) : '$avoid'"
+  [ ${#findopts} != 0 ]   && echo "Find options: '${findopts}'"
+  [ ${#findavoid} != 0 ]  && echo "Find (avoid): '${findavoid}'"
 fi
+
+# Help? Print & exit
+#
+[ -n "${opts//[!h]/}" ] && usage && exit 0
 
 clean_up "$pdir/$all"
 
