@@ -1,5 +1,5 @@
 #!/bin/sh
-#@0.2 2014.04.17 11:51:00 GMT-3
+#@0.2.1 2014.04.18 11:35:00 GMT-3
 #
 # Bash script used to generate (and backup) the database used by codequery.
 #
@@ -41,6 +41,7 @@ usage () {
           "  --pycscope=<path>          Where to find pycscope;\n" \
           "  --starscope=<path>         Where to find starscope;\n" \
           "  --cqmakedb=<path>          Where to find cqmakedb;\n" \
+          "  -v (verbose)               Display what is happenning;\n" \
           "  -h (help)                  Display this help and exit.\n\n" \
           "Default values are assigned from current directory name for <project> and 'c'\n" \
           "for <type> if they were not set. At least one command line argument must be provided."
@@ -64,6 +65,7 @@ vars_init () {
 
   rm_fl=1          # remove the list of all processed files?
   dryrun=          # dry-run morph command
+  verbose=         # verbose: show the command to be executed
   findopts=        # 'find' extra options (affects all searches)
   findavoid=       # file types to be excluded from all searches
   
@@ -143,16 +145,16 @@ scope_match () {
 
     case "$1" in
       C|C++|c|cpp)
-        eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_cscope:+${_cscope} -cb -i '$pdir/$mf' -f '$pdir/$ct.tmp'}"
+        eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_cscope:+${_cscope} -cb -i '$pdir/$mf' -f '$pdir/$ct.tmp' ;} ${verbose:+set +x}"
         ;;
       Java|js)
-        eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_cscope:+${_cscope} -cbR -i '$pdir/$mf' -f '$pdir/$ct.tmp'}"
+        eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_cscope:+${_cscope} -cbR -i '$pdir/$mf' -f '$pdir/$ct.tmp' ;} ${verbose:+set +x}"
         ;;
       Python|py)
-        eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_pycscope:+${_pycscope} -i '$pdir/$mf' -f '$pdir/$ct.tmp'}"
+        eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_pycscope:+${_pycscope} -i '$pdir/$mf' -f '$pdir/$ct.tmp' ;} ${verbose:+set +x}"
         ;;
       Go|Ruby|go|rb)
-        eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_starscope:+${_starscope} -i '$pdir/$mf' -f '$pdir/$ct.tmp'}"
+        eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_starscope:+${_starscope} -i '$pdir/$mf' -f '$pdir/$ct.tmp' ;} ${verbose:+set +x}"
         ;;
     esac
     [ -s "$pdir/$ct.tmp" ] && cat "$pdir/$ct.tmp" >> "$pdir/$ct"
@@ -169,27 +171,27 @@ scope_match_types () {
     
     if [ ${#_cscope} != 0 ]; then
       cat "$pdir/$tt" | sed -n "\=$rx_C$=I p" > "$pdir/$mf"
-      [ -s "$pdir/$mf" ] && eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_cscope} -cb -i '$pdir/$mf' -f '$pdir/$ct.tmp'"
+      [ -s "$pdir/$mf" ] && eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_cscope} -cb -i '$pdir/$mf' -f '$pdir/$ct.tmp' ; ${verbose:+set +x}"
       [ -s "$pdir/$ct.tmp" ] && cat "$pdir/$ct.tmp" >> "$pdir/$ct"
 
       cat "$pdir/$tt" | sed -n "\=$rx_java$=I p" > "$pdir/$mf"
-      [ -s "$pdir/$mf" ] && eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_cscope} -cbR -i '$pdir/$mf' -f '$pdir/$ct.tmp'"
+      [ -s "$pdir/$mf" ] && eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_cscope} -cbR -i '$pdir/$mf' -f '$pdir/$ct.tmp' ; ${verbose:+set +x}"
       [ -s "$pdir/$ct.tmp" ] && cat "$pdir/$ct.tmp" >> "$pdir/$ct"
     fi
 
     if [ ${#_pycscope} != 0 ]; then
       cat "$pdir/$tt" | sed -n "\=$rx_py$=I p" > "$pdir/$mf"
-      [ -s "$pdir/$mf" ] && eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_pycscope} -i '$pdir/$mf' -f '$pdir/$ct'"
+      [ -s "$pdir/$mf" ] && eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_pycscope} -i '$pdir/$mf' -f '$pdir/$ct' ; ${verbose:+set +x}"
       [ -s "$pdir/$ct.tmp" ] && cat "$pdir/$ct.tmp" >> "$pdir/$ct"
     fi
     
     if [ ${#_starscope} != 0 ]; then
       cat "$pdir/$tt" | sed -n "\=$rx_go$=I p" > "$pdir/$mf"
-      [ -s "$pdir/$mf" ] && eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_starscope} -i '$pdir/$mf' -f '$pdir/$ct'"
+      [ -s "$pdir/$mf" ] && eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_starscope} -i '$pdir/$mf' -f '$pdir/$ct' ; ${verbose:+set +x}"
       [ -s "$pdir/$ct.tmp" ] && cat "$pdir/$ct.tmp" >> "$pdir/$ct"
 
       cat "$pdir/$tt" | sed -n "\=$rx_rb$=I p" > "$pdir/$mf"
-      [ -s "$pdir/$mf" ] && eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_starscope} -i '$pdir/$mf' -f '$pdir/$ct'"
+      [ -s "$pdir/$mf" ] && eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_starscope} -i '$pdir/$mf' -f '$pdir/$ct' ; ${verbose:+set +x}"
       [ -s "$pdir/$ct.tmp" ] && cat "$pdir/$ct.tmp" >> "$pdir/$ct"
     fi
 
@@ -214,14 +216,18 @@ find_src () {
       _tag=${tag%.i}
       [ "$tag" != "${_tag}" ] && _cm=i
       aux=$( echo "$re_types" | sed -n "s;^${_tag}:\(.*\);\1;; T; p; q" 2>/dev/null )
-      [ $? != 0 -o ${#aux} = 0 ] && echo "WARNING ($FUNCNAME:$LINENO): invalid file type '$tag'." && return
+      [ $? != 0 -o ${#aux} = 0 ] && echo "${NL}WARNING ($FUNCNAME:$LINENO): invalid file type '$tag'." && return
         
+      eval "${verbose:+echo '${PS4}<type> search (START): \"$tag\"'}"
+
       eval "find '$1' ${findopts:+\( $findopts \)} ${_min:+-mindepth ${_min}} ${_max:+-maxdepth ${_max}} \
                       -type f ${avoid:+\( ! -regex '$avoid' \)} ${findavoid:+\( $findavoid \)} \
                       -${_cm}regex '$aux'" >> "$pdir/$mf"
-      rval=$?; [ $rval != 0 ] && echo "WARNING ($FUNCNAME:$LINENO): 'find' returned error code '$rval'." && return
+      rval=$?; [ $rval != 0 ] && echo "${NL}WARNING ($FUNCNAME:$LINENO): 'find' returned error code '$rval'." && return
 
       scope_match "${_tag}" ""
+
+      eval "${verbose:+echo '${PS4}<type> search (END): \"$tag\"'}"
       ;;
       
     :*)  # ctags file types
@@ -232,12 +238,16 @@ find_src () {
         aux=$( echo "$re_ctags" | sed -n "s;^${_tag}:\(.*\);\1;; T; p; q" 2>/dev/null )
         [ $? != 0 -o ${#aux} = 0 ] && echo "WARNING ($FUNCNAME:$LINENO): invalid ctags file type '$tag'." && return
         
+        eval "${verbose:+echo '${PS4}<ctags> search (START): \"$tag\"'}"
+        
         eval "find '$1' ${findopts:+\( $findopts \)} ${_min:+-mindepth ${_min}} ${_max:+-maxdepth ${_max}} \
                         -type f ${avoid:+\( ! -regex '$avoid' \)} ${findavoid:+\( $findavoid \)} \
                         -${_cm}regex '$aux'" >> "$pdir/$mf"
         rval=$?; [ $rval != 0 ] && echo "WARNING ($FUNCNAME:$LINENO): 'find' returned error code '$rval'." && return
 
         scope_match "${_tag}" ":"
+        
+        eval "${verbose:+echo '${PS4}<ctags> search (END): \"$tag\"'}"
       fi
       ;;
       
@@ -254,12 +264,16 @@ find_src () {
       else
         val=regex
       fi
+      eval "${verbose:+echo '${PS4}<def> search (START): \"$tag\"'}"
+
       eval "find '$1' ${findopts:+\( $findopts \)} ${_min:+-mindepth ${_min}} ${_max:+-maxdepth ${_max}} \
                       -type f ${avoid:+\( ! -regex '$avoid' \)} ${findavoid:+\( $findavoid \)} \
                       -${_cm}$val '$aux'" > "$pdir/$tt"
       rval=$?; [ $rval != 0 ] && echo "WARNING ($FUNCNAME:$LINENO): 'find' returned error code '$rval'." && return
 
       scope_match_types "${_tag}" "="
+
+      eval "${verbose:+echo '${PS4}<def> search (END): \"$tag\"'}"
       
       mv -f "$pdir/$tt" "$pdir/$mf"
       ;;
@@ -276,7 +290,7 @@ find_src () {
 tag_src () {
   local ext
   
-  eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_ctags:+${_ctags} --fields=+i -n -R -L '$pdir/$fl' -f '$pdir/$tt'}"
+  eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_ctags:+${_ctags} --fields=+i -n -R -L '$pdir/$fl' -f '$pdir/$tt' ;} ${verbose:+set +x}"
   
   if [ "$bkp" != - ]; then
     # Backup the current project
@@ -284,16 +298,16 @@ tag_src () {
     if [ "$bkp" = + ]; then
       ext=..bk1
       for aux in ..bk0 .; do 
-        [ -f "$pdir/$prj.db${aux#.}" ] && eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} mv -f '$pdir/$prj.db${aux#.}' '$pdir/$prj.db${ext#.}'"
+        [ -f "$pdir/$prj.db${aux#.}" ] && eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} mv -f '$pdir/$prj.db${aux#.}' '$pdir/$prj.db${ext#.}' ; ${verbose:+set +x}"
         ext=$aux;
       done
     else
-      eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} mv -f '$pdir/$prj.db' '$pdir/$prj.db${bkp}'"
+      eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} mv -f '$pdir/$prj.db' '$pdir/$prj.db${bkp}' ; ${verbose:+set +x}"
     fi
   fi
   aux=
   [ -s "$pdir/$ct" ] && aux="-c '$pdir/$ct'"
-  eval "${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_cqmakedb:+${_cqmakedb} -s '$pdir/$prj.db' $aux ${_ctags:+-t '$pdir/$tt'} -p}"
+  eval "${verbose:+set -x ;} ${dryrun:+$dryrun '(${FUNCNAME:-<main>}:$LINENO)'} ${_cqmakedb:+${_cqmakedb} -s '$pdir/$prj.db' $aux ${_ctags:+-t '$pdir/$tt'} -p ;} ${verbose:+set +x}"
 }
 
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -304,7 +318,7 @@ vars_init
 
 [ -f "$pdir/$fl" ] && rm -f "$pdir/$fl"
 
-aux=$( getopt -o p:c:t:d:iIn:r:o:a:b:kARDEh --long project:,class:,types:,depth:,,,name:,regex:,options:,avoid:,backup:,keep,absolute,dry-run,debug,edebug,ctags:,cscope:,pycscope:,starscope:,cqmakedb:,help -- "$@" )
+aux=$( getopt -o p:c:t:d:iIn:r:o:a:b:kARDEvh --long project:,class:,types:,depth:,,,name:,regex:,options:,avoid:,backup:,keep,absolute,dry-run,debug,edebug,ctags:,cscope:,pycscope:,starscope:,cqmakedb:,verbose,help -- "$@" )
 [ $? != 0 ] && exit 1
 
 eval set -- "$aux"
@@ -512,6 +526,12 @@ while true ; do
       skip
       ;;
 
+    -v|--verbose)
+      opts="${opts}v"
+      # Test if the script was not already started with 'set -x' first
+      [[ "${-/x/}" = "$-" ]] && verbose=-
+      ;;
+
     -h|--help)
       opts="${opts}h"
       ;;
@@ -573,10 +593,12 @@ if [ -n "${opts//[!E]/}" ]; then
   [ ${#_starscope} != 0 ] && echo "starscope   : '${_starscope}'"
   [ ${#_cqmakedb} != 0 ]  && echo "cqmakedb    : '${_cqmakedb}'"
 fi
-if [ -n "${opts//[!D]/}" ]; then
+if [ -n "${opts//[!Dv]/}" ]; then
   [ ${#opts} != 0 ]       && echo "Arg. options: '$opts'"
   [ ${#prj} != 0 ]        && echo "Project name: '$prj'" \
                           && echo "Project path: '$pdir'"
+fi
+if [ -n "${opts//[!D]/}" ]; then
   [ ${#tags} != 0 ]       && echo "Type / class: '${tags//$BELL/$NL               }'"
   [ ${#etags} != 0 ]      && echo "Extra defs  : '${etags//$BELL/$NL               }'"
   [ ${#avoid} != 0 ]      && echo "RCS (avoid) : '$avoid'"
@@ -621,12 +643,12 @@ for val in $( echo "$val" | sed -e "s;^[ \t]\+;;; s;[ \t]\+$;;; s;$BELL; ;g;" );
     
     pdir=$cwd
 
-    if [ -n "${opts//[!D]/}" ]; then
+    if [ -n "${opts//[!Dv]/}" ]; then
       echo "Project name: '$prj'"
       echo "Project path: '$pdir'"
     fi
   fi
-  [ -n "${opts//[!D]/}" ] && echo "Source path : '$prj'$NL"
+  [ -n "${opts//[!Dv]/}" ] && echo "Source path : '$bdir'$NL"
 
   # Process source files
   #
@@ -636,7 +658,7 @@ for val in $( echo "$val" | sed -e "s;^[ \t]\+;;; s;[ \t]\+$;;; s;$BELL; ;g;" );
   #
   [ -s "$pdir/$fl" ] && tag_src && [ -n "${opts//[!k]/}" ] && cat "$pdir/$fl" >> "$pdir/$all"
   
-  [ -n "${opts//[!D]/}" ] && echo "${NL}Found files : '$pfts'"
+  [ -n "${opts//[!Dv]/}" ] && echo "${NL}Found files : '$pfts'"
 
   # Prepare for next iteration
   #
