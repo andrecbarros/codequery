@@ -216,14 +216,14 @@ find_src () {
       _tag=${tag%.i}
       [ "$tag" != "${_tag}" ] && _cm=i
       aux=$( echo "$re_types" | sed -n "s;^${_tag}:\(.*\);\1;; T; p; q" 2>/dev/null )
-      [ $? != 0 -o ${#aux} = 0 ] && echo "${NL}WARNING ($FUNCNAME:$LINENO): invalid file type '$tag'." && return
+      [ $? != 0 -o ${#aux} = 0 ] && echo "WARNING ($FUNCNAME:$LINENO): invalid file type '$tag'." && return
         
       eval "${verbose:+echo '${PS4}<type> search (START): \"$tag\"'}"
 
       eval "find '$1' ${findopts:+\( $findopts \)} ${_min:+-mindepth ${_min}} ${_max:+-maxdepth ${_max}} \
                       -type f ${avoid:+\( ! -regex '$avoid' \)} ${findavoid:+\( $findavoid \)} \
                       -${_cm}regex '$aux'" >> "$pdir/$mf"
-      rval=$?; [ $rval != 0 ] && echo "${NL}WARNING ($FUNCNAME:$LINENO): 'find' returned error code '$rval'." && return
+      rval=$?; [ $rval != 0 ] && echo "WARNING ($FUNCNAME:$LINENO): 'find' returned error code '$rval'." && return
 
       scope_match "${_tag}" ""
 
