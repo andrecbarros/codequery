@@ -1,5 +1,5 @@
 #!/bin/sh
-#@0.2.1 2014.04.18 11:35:00 GMT-3
+#@0.2.2 2014.05.07 22:57:00 GMT-3
 #
 # Bash script used to generate (and backup) the database used by codequery.
 #
@@ -36,6 +36,9 @@ usage () {
           "  -R (dry-run)               Do not touch the database (semi fake run);\n" \
           "  -D (debug)                 Print out the control structures;\n" \
           "  -E (edebug)                Print out the extra type/class/defs control structures;\n" \
+          "  -S[+-] [name] (save)       Save options to <name> (default: ~/.codequery.sh.opts).\n" \
+          "                             S: save only app paths; S-: save -d[nr]oaA; S+: S + S-.\n" \
+          "  -L[+-] [name] (load)       Load default options (see -S);\n" \
           "  --ctags=<path>             Where to find ctags;\n" \
           "  --cscope=<path>            Where to find cscope;\n" \
           "  --pycscope=<path>          Where to find pycscope;\n" \
@@ -68,6 +71,11 @@ vars_init () {
   verbose=         # verbose: show the command to be executed
   findopts=        # 'find' extra options (affects all searches)
   findavoid=       # file types to be excluded from all searches
+  
+  save_to=         # Where things will be saved
+  save_opt=
+  load_from=       # From where load saved things
+  load_opt=
   
   # processed files list
   fl=codequery.files
@@ -120,6 +128,7 @@ js:$rx_js"
   re_etags=    # extra file types
   
   val=
+  arg=
   aux=
   cwd=$( pwd )     # current dir
   pdir=            # project dir
@@ -318,8 +327,8 @@ vars_init
 
 [ -f "$pdir/$fl" ] && rm -f "$pdir/$fl"
 
-aux=$( getopt -o p:c:t:d:iIn:r:o:a:b:kARDEvh --long project:,class:,types:,depth:,,,name:,regex:,options:,avoid:,backup:,keep,absolute,dry-run,debug,edebug,ctags:,cscope:,pycscope:,starscope:,cqmakedb:,verbose,help -- "$@" )
-[ $? != 0 ] && exit 1
+aux=$( getopt -o p:c:t:d:iIn:r:o:a:b:kARDES::L::vh --long project:,class:,types:,depth:,,,name:,regex:,options:,avoid:,backup:,keep,absolute,dry-run,debug,edebug,save::,save+::,save-::,load::,load+::,load-::,ctags:,cscope:,pycscope:,starscope:,cqmakedb:,verbose,help -- "$@" )
+rval=$? ; [ $? != 0 ] && usage && exit $rval
 
 eval set -- "$aux"
 while true ; do
@@ -509,6 +518,52 @@ while true ; do
     -E|--edebug)
       opts="${opts}E"
       ;;
+    
+    -S|--save|--save+|--save-)
+      opts="${opts}S"
+      save_opt=S
+      if [ "$1" = -S ]; then
+        aux=${2:0:1}
+        [ -n "${aux//[!+-]/}" ] && save_opt=$aux && aux=${2:1}
+      else
+        aux=${1##*e}
+        [ .$aux != . ] && save_opt=$aux
+        aux=$2
+      fi
+      [ .$aux = . ] && aux=~/.codequery.sh.opts
+      save_to=$aux
+      if [ -e "${save_to}" ]; then
+        aux=$( sed -n '1 { /^#codequery.sh#$/p; }; q' -- "${save_to}" ) \
+        [ $? != 0 -o ${#aux} = 0 ] \
+          && echo "WARNING (${FUNCNAME:-<main>}:$LINENO): cowardly avoiding overwrite '${save_to}' - 1st line is not '#codequery.sh#'." \
+          && save_opt=
+      fi
+      ;;
+      
+    -L|--load|--load+|--load-)
+      opts="${opts}L"
+      load_opt=L
+      if [ "$1" = -L ]; then
+        aux=${2:0:1}
+        [ -n "${aux//[!+-]/}" ] && load_opt=$aux && aux=${2:1}
+      else
+        aux=${1##*e}
+        [ .$aux != . ] && load_opt=$aux
+        aux=$2
+      fi
+      [ .$aux = . ] && aux=~/.codequery.sh.opts
+      load_from=$aux
+      if [ -e "${load_from}" ]; then
+        aux=$( sed -n '1 { /^#codequery.sh#$/p; }; q' -- "${load_from}" )
+        [ $? != 0 -o ${#aux} = 0 ] \
+          && echo "WARNING (${FUNCNAME:-<main>}:$LINENO): Ignoring values from '${load_from}' - 1st line is not '#codequery.sh#'." \
+          && load_opt=
+      else
+        echo "WARNING (${FUNCNAME:-<main>}:$LINENO): Ignoring values from '${load_from}' - file does no exist or is empty."
+        load_opt=
+      fi
+      shift
+      ;;
       
     --ctags|\
     --cscope|\
@@ -520,10 +575,10 @@ while true ; do
         [ -z "${2//[[:space:]]/}" ] && echo "ERROR (${FUNCNAME:-<main>}:$LINENO): invalid '${1##*-}' path '$2'." && exit 1
 
         which "$2" 2>/dev/null
-        [ -z "${2//[[:space:]]/}" ] && echo "ERROR (${FUNCNAME:-<main>}:$LINENO): invalid '${1##*-}' path '$2'." && exit 1
+        [ $? != 0 ] && echo "ERROR (${FUNCNAME:-<main>}:$LINENO): invalid '${1##*-}' path '$2'." && exit 1
       fi
-      _${1##*-}=$2
-      skip
+      eval _${1##*-}=$2
+      shift
       ;;
 
     -v|--verbose)
@@ -545,22 +600,36 @@ while true ; do
 done
 
 if [ ! ${#@} = 0 ]; then
-  val="${@//\ /$BELL}"
-  val="${val// /$NL}"
+  arg="${@//\ /$BELL}"
+  arg="${arg// /$NL}"
 else
   [ -z "$opts" ] && usage && exit 0
 
-  val=.
+  arg=.
 fi
 
 # Tools available or disabled
 #
-[ ! -v _ctags ] && _ctags=$( which ctags 2>/dev/null )
-[ ! -v _cscope ] && _cscope=$( which cscope 2>/dev/null )
-[ ! -v _pycscope ] && _pycscope=$( which pycscope 2>/dev/null )
-[ ! -v _starscope ] && _starscope=$( which starscope 2>/dev/null )
-[ ! -v _cqmakedb ] && _cqmakedb=$( which cqmakedb 2>/dev/null )
+if [ -n "${opts//[!L]/}" ] && [ .${load_opt} = .L -o .${load_opt} = .+ ]; then
+  for aux in ctags cscope pycscope starscope cqmakedb; do
+    [ ! -v _$aux ] \
+      && val=$( cat "${load_from}" | sed -n "s;^[ \t]*$aux[ \t]*=[ \t]*;;; T; s;[ \t]$;;; s;\(['\"]\|\)\(.*\)\1;\2;p" 2>/dev/null ) \
+      && [ $? = 0 ] && eval _$aux=$val
+  done
+fi
+for aux in ctags cscope pycscope starscope cqmakedb; do
+  [ ! -v _$aux ] && val=$( which $aux 2>/dev/null ) && [ $? = 0 ] && eval _$aux=$val
+done
+if [ -n "${opts//[!L]/}" ] && [ .${load_opt} = .- -o .${load_opt} = .+ ]; then
+  for aux in findopts min max avoid findavoid tags etags; do
+    [ ! -v _$aux ] \
+      && val=$( cat "${load_from}" | sed -n "s;^[ \t]*$aux[ \t]*=[ \t]*;;; T; s;[ \t]$;;; s;\(['\"]\|\)\(.*\)\1;\2;p" 2>/dev/null ) \
+      && [ $? = 0 ] && eval $aux=$val
+  done
+fi
 
+# Generate the regex equivalent to ctags file match expression
+#
 [ ${#_ctags} != 0 ] && \
   re_ctags=$( ${_ctags} --list-maps |\
               sed -e 's=^[ \t]*\([^ \t]\+\)[ \t]\+\(.*[^ \t]\)[ \t]*$=\1:\\(\2\\)=; s=[ \t]\+=\\|=g; s=\.=\\.=g; s=\*=.*=g; s=\(\\[(|]\)\([[:alnum:][]\)=\1\\(.*/\\|\\)\2=g' )
@@ -612,8 +681,26 @@ fi
 
 clean_up "$pdir/$all"
 
+# Save the options?
+#
+[ -n "${opts//[!S]/}" -a ${#save_opt} != 0 ] && eval "${dryrun:+$dryrun \"} echo '#codequery.sh#' > '${save_to}' ${dryrun:+\"}"
+if [ -n "${opts//[!S]/}" ] && [ .${save_opt} = .S -o .${save_opt} = .+ ]; then
+  for aux in ctags cscope pycscope starscope cqmakedb; do
+    # val=${!aux}
+    eval val=\${_$aux}
+    eval "${dryrun:+$dryrun \"} echo '$aux = \"${val}\"' >> '${save_to}' ${dryrun:+\"}"
+  done
+fi
+if [ -n "${opts//[!S]/}" ] && [ .${save_opt} = .- -o .${save_opt} = .+ ]; then
+  for aux in findopts min max avoid findavoid tags etags; do
+    # val=${!aux}
+    eval val=\${$aux}
+    eval "${dryrun:+$dryrun \"} echo '$aux = \"${val}\"' >> '${save_to}' ${dryrun:+\"}"
+  done
+fi
+
 IFS=$NL
-for val in $( echo "$val" | sed -e "s;^[ \t]\+;;; s;[ \t]\+$;;; s;$BELL; ;g;" ); do
+for val in $( echo "$arg" | sed -e "s;^[ \t]\+;;; s;[ \t]\+$;;; s;$BELL; ;g;" ); do
 
   # Split dir ($bdir) and possible project name ($val). Note that $val will be
   # discarded if a proper project name is set
